@@ -1,5 +1,7 @@
 from functools import reduce
 from collections import OrderedDict
+import json
+import pickle
 
 # Import two functions from our hash_util.py file. Omit the ".py" in the import
 from hash_util import hash_string_256, hash_block
@@ -19,9 +21,68 @@ blockchain = [genesis_block]
 # Unhandled transactions
 open_transactions = []
 # We are the owner of this blockchain node, hence this is our identifier (e.g. for sending coins)
-owner = 'Max'
+owner = 'Nebura'
 # Registered participants: Ourselves + other people sending/ receiving coins
-participants = {'Max'}
+participants = {'Nebura'}
+
+
+def load_data():
+    with open('blockchain.txt', mode='r') as file:
+        file_content = file.readlines()
+        # file_content = pickle.loads(file.read())
+        # print(file_content)
+        global blockchain, open_transactions
+        # blockchain = file_content['chain']
+        # open_transactions = file_content['ot']
+        blockchain = json.loads(file_content[0][:-1])
+        updated_blockchain = []
+        for block in blockchain:
+            updated_block = {
+                'previous_hash': block['previous_hash'],
+                'index': block['index'],
+                'proof': block['proof'],
+                'transactions': [OrderedDict(
+                    [
+                        ('sender', tx['sender']),
+                        ('recipient', tx['recipient']),
+                        ('amount', tx['amount'])
+                    ]
+                )for tx in block['transactions']]
+            }
+            updated_blockchain.append(updated_block)
+
+        blockchain = updated_blockchain
+
+        open_transactions = json.loads(file_content[1])
+        updated_transactions = []
+        for tx in open_transactions:
+            updated_transaction = OrderedDict(
+                [
+                    ('sender', tx['sender']),
+                    ('recipient', tx['recipient']),
+                    ('amount', tx['amount'])
+                ]
+            )
+            updated_transactions.append(updated_transaction)
+        open_transactions = updated_transactions
+    print('Data loaded!')
+
+
+load_data()
+
+
+def save_data():
+    with open('blockchain.txt', mode='w') as file:
+        file.write(json.dumps(blockchain))
+        file.write('\n')
+        file.write(json.dumps(open_transactions))
+        # save_data = {
+        #     'chain': blockchain,
+        #     'ot': open_transactions
+        # }
+        # file.write(pickle.dumps(save_data))
+
+    print('Data saved!')
 
 
 def valid_proof(transactions, last_hash, proof):
@@ -73,14 +134,14 @@ def get_balance(participant):
     tx_sender.append(open_tx_sender)
     print(tx_sender)
     amount_sent = reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt)
-                         if len(tx_amt) > 0 else tx_sum + 0, tx_sender, 0)
+    if len(tx_amt) > 0 else tx_sum + 0, tx_sender, 0)
     # This fetches received coin amounts of transactions that were already included in blocks of the blockchain We
     # ignore open transactions here because you shouldn't be able to spend coins before the transaction was confirmed
     # + included in a block
     tx_recipient = [[tx['amount'] for tx in block['transactions']
                      if tx['recipient'] == participant] for block in blockchain]
     amount_received = reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt)
-                             if len(tx_amt) > 0 else tx_sum + 0, tx_recipient, 0)
+    if len(tx_amt) > 0 else tx_sum + 0, tx_recipient, 0)
     # Return the total balance
     return amount_received - amount_sent
 
@@ -100,6 +161,7 @@ def verify_transaction(transaction):
     """
     sender_balance = get_balance(transaction['sender'])
     return sender_balance >= transaction['amount']
+
 
 # This function accepts two arguments.
 # One required one (transaction_amount) and one optional one (last_transaction)
@@ -125,6 +187,7 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         open_transactions.append(transaction)
         participants.add(sender)
         participants.add(recipient)
+        save_data()
         return True
     return False
 
@@ -155,6 +218,7 @@ def mine_block():
         'proof': proof
     }
     blockchain.append(block)
+    save_data()
     return True
 
 
@@ -226,6 +290,7 @@ while waiting_for_input:
     elif user_choice == '2':
         if mine_block():
             open_transactions = []
+            save_data()
     elif user_choice == '3':
         print_blockchain_elements()
     elif user_choice == '4':
@@ -241,7 +306,7 @@ while waiting_for_input:
             blockchain[0] = {
                 'previous_hash': '',
                 'index': 0,
-                'transactions': [{'sender': 'Chris', 'recipient': 'Max', 'amount': 100.0}]
+                'transactions': [{'sender': 'Chris', 'recipient': 'Nebura', 'amount': 100.0}]
             }
     elif user_choice == 'q':
         # This will lead to the loop to exist because it's running condition becomes False
@@ -253,9 +318,8 @@ while waiting_for_input:
         print('Invalid blockchain!')
         # Break out of the loop
         break
-    print('Balance of {}: {:6.2f}'.format('Max', get_balance('Max')))
+    print('Balance of {}: {:6.2f}'.format('Nebura', get_balance('Nebura')))
 else:
     print('User left!')
-
 
 print('Done!')
