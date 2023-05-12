@@ -4,7 +4,6 @@ import json
 
 # __all__ = ['hash_string_256', 'hash_block']
 
-
 def hash_string_256(string):
     """Create a SHA256 hash for a given input string.
 
